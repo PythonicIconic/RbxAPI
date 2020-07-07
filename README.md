@@ -35,3 +35,13 @@ cookie = open('cookie.txt').readline()
 with RbxAPI.User(1234567, cookie) as user:
     print(user.presence)
 ```
+## Notes
+Both the `User` and `Group` objects have attributes assigned from the API responses and are generally set to lowercase.
+
+For example, a `User`'s attributes are assigned based on the `https://api.roblox.com/users/{userid}` json response and you can access each normally.
+```py
+import RbxAPI
+
+with RbxAPI.User(156) as user:
+    print(user.id, user.username, user.avataruri, user.avatarfinal, user.isonline)
+```
