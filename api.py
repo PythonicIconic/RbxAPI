@@ -13,6 +13,11 @@ class BaseAuth:
         if cookie:
             self.__session.cookies['.ROBLOSECURITY'] = cookie
             self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+            data = self.__session.get('https://www.roblox.com/mobileapi/userinfo')
+            try:
+                data.json()
+            except:
+                raise UserWarning('Invalid cookie')
 
     @property
     def session(self):
@@ -22,6 +27,11 @@ class BaseAuth:
     def session(self, cookie: str):
         self.__session.cookies['.ROBLOSECURITY'] = cookie
         self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+        data = self.__session.get('https://www.roblox.com/mobileapi/userinfo')
+        try:
+            data.json()
+        except:
+            raise UserWarning('Invalid cookie')
 
     def __enter__(self):
         return self.session
