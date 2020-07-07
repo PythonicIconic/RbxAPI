@@ -7,16 +7,26 @@ from RbxAPI import utils
 from RbxAPI import api
 
 
+class CookieInfo:
+    def __init__(self, data):
+        self.__dict__.update(data)
+
+    def __repr__(self):
+        return f'CookieInfo(UserId={self.UserId} Name={self.Name} IsEmailOnFile={self.IsEmailOnFile} ' \
+               f'IsEmailVerified={self.IsEmailVerified})'
+
+
 class User(api.BaseAuth):
     def __init__(self, userid: int, cookie: str = None):
         super().__init__(cookie)
         data = {k.lower(): v for k, v in requests.get(f'{api.base}/users/{userid}').json().items()}
         data.update(requests.get(f'{api.user}/users/{userid}').json())
         if data.get('errors', ''):
-            raise UserWarning('Invalid UserID or Roblox API down')
+            utils.handle_code(data['errors'][0]['code'])
         else:
             del data['name'], data['displayName']
             self.__dict__.update(data)
+            self.__cookie_info = None
             self.__presence = None
             self.__friends = None
             self.__groups = None
@@ -33,11 +43,20 @@ class User(api.BaseAuth):
         del self
 
     @property
+    def cookie_info(self):
+        if self.session:
+            data = self.session.get(f'https://www.roblox.com/my/settings/json').json()
+            self.__cookie_info = CookieInfo(data)
+        else:
+            raise UserWarning('Authentication required for this endpoint, session must be set')
+        return self.__cookie_info
+
+    @property
     def friends(self):
         if not self.__friends:
             data = requests.get(f'{api.base}/users/{self.id}/friends').json()
             if not data:
-                raise UserWarning('Invalid UserID, unauthorized to view friends or Roblox API down')
+                utils.handle_code(data['errors'][0]['code'])
             else:
                 page = 2
                 results = [*data]
@@ -55,7 +74,7 @@ class User(api.BaseAuth):
         if not self.__groups:
             data = requests.get(f'{api.base}/users/{self.id}/groups').json()
             if type(data) == dict and data.get('errors', ''):
-                raise UserWarning('Invalid UserID or Roblox API down')
+                utils.handle_code(data['errors'][0]['code'])
             elif not data:
                 raise UserWarning('User not in any groups')
             else:
@@ -69,7 +88,7 @@ class User(api.BaseAuth):
         if not self.__rap:
             data = requests.get(f'{api.inventory}/{self.id}/assets/collectibles?sortOrder=Asc&limit=100').json()
             if data.get('errors', ''):
-                raise UserWarning('Invalid UserID or not authorized to view inventory')
+                utils.handle_code(data['errors'][0]['code'])
             else:
                 results = [data['data']]
                 while data['nextPageCursor']:
@@ -84,7 +103,7 @@ class User(api.BaseAuth):
             if self.session:
                 data = self.session.post(api.presence, data={'userids': [self.id]}).json()
                 if data.get('errors', ''):
-                    raise UserWarning('Authentication required for this endpoint, session must be set')
+                    utils.handle_code(data['errors'][0]['code'])
                 else:
                     self.__presence = conversion.UserPresence._make(data['userPresences'][0].values())
             else:
@@ -95,6 +114,19 @@ class User(api.BaseAuth):
     def by_username(cls, username: str):
         data = requests.post(f'{api.user}/usernames/users', data={'usernames': [username], 'excludeBannedUsers': False}).json()
         return cls(data['data'][0]['id'])
+
+    @classmethod
+    def by_cookie(cls, cookie: str):
+        sess = requests.session()
+        sess.cookies['.ROBLOSECURITY'] = cookie
+        sess.headers['X-CSRF-TOKEN'] = sess.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+        data = sess.get('https://www.roblox.com/mobileapi/userinfo')
+        try:
+            data = data.json()
+        except:
+            raise UserWarning('Invalid cookie')
+        else:
+            return cls(data['UserID'], cookie)
 
 
 class Shout:
@@ -120,24 +152,32 @@ class Group(api.BaseAuth):
         super().__init__(cookie)
         data = requests.get(f'{api.base}/groups/{groupid}').json()
         if data.get('errors', ''):
-            raise UserWarning('Invalid GroupID or Roblox API down')
+            utils.handle_code(data['errors'][0]['code'])
         else:
             self.__dict__.update({k.lower(): v for k, v in data.items()})
             self.owner = User(self.owner['Id'])
+            self.__description = self.__dict__.pop('description')
             self.__enemies = None
             self.__allies = None
             self.__roles = None
+            self.__shout = None
 
     def __repr__(self):
         return f'Group(id={self.id} name={self.name} owner={self.owner})'
 
-    def update_role(self, user: Union[User, int], role_id: int):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del self
+
+    def update_role(self, user: Union[User, int], role: Union[Role, int]):
         _id = user.id if isinstance(user, User) else user
-        data = self.session.patch(f'{api.groups}/groups/{self.id}/users/{_id}', data={'roleId': role_id})
+        _role_id = role.id if isinstance(role, Role) else role
+        data = self.session.patch(f'{api.groups}/groups/{self.id}/users/{_id}', data={'roleId': _role_id}).json()
         if data.get('errors', ''):
-            raise UserWarning('User not in Group, role does not exist or Roblox API down')
-        else:
-            return
+            utils.handle_code(data['errors'][0]['code'])
+        return 'Success'
 
     @property
     def roles(self):
@@ -147,11 +187,36 @@ class Group(api.BaseAuth):
         return self.__roles
 
     @property
+    def description(self):
+        return self.__description
+
+    @description.setter
+    def description(self, description: str):
+        data = self.session.patch(f'{api.groups}/groups/{self.id}/description', data={'description': description}).json()
+        if data.get('errors', ''):
+            utils.handle_code(data['errors'][0]['code'])
+        self.__description = data['newDescription']
+
+    @property
+    def shout(self):
+        if not self.__shout:
+            data = requests.get(f'{api.groups}/groups/{self.id}').json()
+            if data.get('shout', ''):
+                self.__shout = Shout(data['shout'])
+        return self.__shout
+
+    @shout.setter
+    def shout(self, message: str):
+        data = self.session.patch(f'{api.groups}/groups/{self.id}/status', data={'message': message}).json()
+        if data.get('errors', ''):
+            utils.handle_code(data['errors'][0]['code'])
+        self.__shout = Shout(data)
+
+    @property
     def allies(self):
         if type(self.__allies) is not list:
             ally_data = requests.get(f'{api.base}/groups/{self.id}/allies').json()['Groups']
             self.__allies = [Group(group['Id']) for group in ally_data]
-
         if self.__allies:
             return self.__allies
         else:
@@ -162,7 +227,6 @@ class Group(api.BaseAuth):
         if type(self.__allies) is not list:
             enemy_data = requests.get(f'{api.base}/groups/{self.id}/enemies').json()['Groups']
             self.__enemies = [Group(group['Id']) for group in enemy_data]
-
         if self.__enemies:
             return self.__enemies
         else:
