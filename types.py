@@ -231,3 +231,59 @@ class Group(api.BaseAuth):
             return self.__enemies
         else:
             return 'Group has no enemies'
+
+
+class Server:
+    def __init__(self, data):
+        self.__dict__.update(data)
+
+    def __repr__(self):
+        return f'Server(id={self.id} maxPlayers={self.maxPlayers} playing={self.playing} fps={self.fps} ping={self.ping})'
+
+
+class Game(api.BaseAuth):
+    def __init__(self, gameid: int, cookie: str):
+        super().__init__(cookie)
+        resp = self.session.get(f'{api.games}/games/multiget-place-details?placeIds={gameid}').json()
+        if isinstance(resp, dict) and resp.get('errors', ''):
+            utils.handle_code(resp['errors'][0]['code'])
+        elif not resp:
+            raise UserWarning('Invalid Game was given')
+        else:
+            resp = requests.get(f'{api.games}/games?universeIds={resp[0]["universeId"]}').json()['data'][0]
+            data = {k.lower(): v for k, v in resp.items()}
+            self.__dict__.update(data)
+            self.creator = User(self.creator.get('id')) if self.creator.get('type') == 'User' else Group(self.creator.get('id'))
+            self.__favorites = None
+            self.__servers = None
+            self.__votes = None
+
+    def __repr__(self):
+        return f'Game(rootplaceid={self.rootplaceid} name={self.name} creator={self.creator})'
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del self
+
+    @property
+    def favorites(self):
+        if not self.__favorites:
+            data = requests.get(f'{api.games}/games/{self.id}/favorites/count').json()
+            self.__favorites = data['favoritesCount']
+        return self.__favorites
+
+    @property
+    def servers(self):
+        if not self.__servers:
+            data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100').json()
+            self.__servers = [Server(server) for server in data['data']]
+        return self.__servers
+
+    @property
+    def votes(self):
+        if not self.__votes:
+            data = requests.get(f'{api.games}/games/votes?universeIds={self.id}').json()['data'][0]
+            self.__votes = conversion.GameVotes(data['upVotes'], data['downVotes'])
+        return self.__votes

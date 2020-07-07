@@ -1,1 +1,1 @@
-from .types import User, Group
+from .types import User, Group, Game

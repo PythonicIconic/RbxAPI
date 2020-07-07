@@ -10,3 +10,8 @@ class UserPresence(NamedTuple):
     universe_id: int
     userid: int
     last_online: str
+
+
+class GameVotes(NamedTuple):
+    upvotes: int
+    downvotes: int

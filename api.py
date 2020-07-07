@@ -2,6 +2,7 @@ import requests
 
 base = 'https://api.roblox.com'
 user = 'https://users.roblox.com/v1'
+games = 'https://games.roblox.com/v1'
 groups = 'https://groups.roblox.com/v1'
 presence = 'https://presence.roblox.com/v1/presence/users'
 inventory = 'https://inventory.roblox.com/v1/users'
