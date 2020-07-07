@@ -17,4 +17,5 @@ def map_reduce_rap(data):
 
 
 def handle_code(code):
+    """Function that handles error codes provided by the Roblox API."""
     raise UserWarning(codes[code])

@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 
 class UserPresence(NamedTuple):
+    """NamedTuple derived class that handles a user's presence."""
     presence_type: str
     last_location: str
     place_id: int
@@ -13,5 +14,6 @@ class UserPresence(NamedTuple):
 
 
 class GameVotes(NamedTuple):
+    """NamedTuple derived class that handles a game's votes."""
     upvotes: int
     downvotes: int

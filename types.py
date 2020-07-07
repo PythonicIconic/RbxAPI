@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Union
+from typing import Union, List
 import requests
 
 from RbxAPI import conversion
@@ -8,6 +8,7 @@ from RbxAPI import api
 
 
 class CookieInfo:
+    """Class that handles information provided by the settings/json response."""
     def __init__(self, data):
         self.__dict__.update(data)
 
@@ -17,7 +18,15 @@ class CookieInfo:
 
 
 class User(api.BaseAuth):
+    """Class that handles interactions with Roblox users."""
     def __init__(self, userid: int, cookie: str = None):
+        """
+        Creates an object that provides Roblox user information and endpoint interactions.
+
+        :param userid: The id of the user to create an object of.
+        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
+        but not all interactions.
+        """
         super().__init__(cookie)
         data = {k.lower(): v for k, v in requests.get(f'{api.base}/users/{userid}').json().items()}
         data.update(requests.get(f'{api.user}/users/{userid}').json())
@@ -43,7 +52,12 @@ class User(api.BaseAuth):
         del self
 
     @property
-    def cookie_info(self):
+    def cookie_info(self) -> CookieInfo:
+        """
+        Contains account information about the current cookie being used.
+
+        :return: CookieInfo
+        """
         if self.session:
             data = self.session.get(f'https://www.roblox.com/my/settings/json').json()
             self.__cookie_info = CookieInfo(data)
@@ -52,7 +66,12 @@ class User(api.BaseAuth):
         return self.__cookie_info
 
     @property
-    def friends(self):
+    def friends(self) -> List['User']:
+        """
+        Contains a list of User objects representing the current user's friends.
+
+        :return: List[User]
+        """
         if not self.__friends:
             data = requests.get(f'{api.base}/users/{self.id}/friends').json()
             if not data:
@@ -70,7 +89,12 @@ class User(api.BaseAuth):
         return self.__friends
 
     @property
-    def groups(self):
+    def groups(self) -> List['Group']:
+        """
+        Contains a list of Group objects representing the groups the current user is in.
+
+        :return: List[Group]
+        """
         if not self.__groups:
             data = requests.get(f'{api.base}/users/{self.id}/groups').json()
             if type(data) == dict and data.get('errors', ''):
@@ -84,7 +108,12 @@ class User(api.BaseAuth):
         return self.__groups
 
     @property
-    def rap(self):
+    def rap(self) -> int:
+        """
+        Contains the total RAP of the current user.
+
+        :return: int
+        """
         if not self.__rap:
             data = requests.get(f'{api.inventory}/{self.id}/assets/collectibles?sortOrder=Asc&limit=100').json()
             if data.get('errors', ''):
@@ -98,7 +127,12 @@ class User(api.BaseAuth):
         return self.__rap
 
     @property
-    def presence(self):
+    def presence(self) -> conversion.UserPresence:
+        """
+        Contains a UserPresence object representing the current user's presence.
+
+        :return: UserPresence
+        """
         if not self.__presence:
             if self.session:
                 data = self.session.post(api.presence, data={'userids': [self.id]}).json()
@@ -111,12 +145,28 @@ class User(api.BaseAuth):
         return self.__presence
 
     @classmethod
-    def by_username(cls, username: str):
+    def by_username(cls, username: str) -> 'User':
+        """
+        Class method that returns a User object based on the given username rather than id.
+
+        :param username: The name of the user to create an object of.
+        :return: User
+        """
         data = requests.post(f'{api.user}/usernames/users', data={'usernames': [username], 'excludeBannedUsers': False}).json()
+        if data.get('errors', ''):
+            utils.handle_code(data['errors'][0]['code'])
+        elif not data['data']:
+            raise UserWarning('Invalid User was given')
         return cls(data['data'][0]['id'])
 
     @classmethod
-    def by_cookie(cls, cookie: str):
+    def by_cookie(cls, cookie: str) -> 'User':
+        """
+        Class method that returns a User object based on the given cookie rather than username or id.
+
+        :param cookie: The cookie of the user to create an object of.
+        :return: User
+        """
         sess = requests.session()
         sess.cookies['.ROBLOSECURITY'] = cookie
         sess.headers['X-CSRF-TOKEN'] = sess.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
@@ -130,6 +180,7 @@ class User(api.BaseAuth):
 
 
 class Shout:
+    """Class that handles information provided by the group API response."""
     def __init__(self, data):
         self.__dict__.update(data)
         self.poster = User(self.poster['userId'])
@@ -139,6 +190,7 @@ class Shout:
 
 
 class Role:
+    """Class that handles information provided by the group API response."""
     def __init__(self, data):
         self.__dict__.update({k.lower(): v for k, v in data.items()})
         self.__member_count = None
@@ -148,7 +200,15 @@ class Role:
 
 
 class Group(api.BaseAuth):
+    """Class that handles interactions with Roblox groups."""
     def __init__(self, groupid: int, cookie: str = None):
+        """
+        Creates an object that provides Roblox group information and endpoint interactions.
+
+        :param groupid: The id of the group to create an object of.
+        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
+        but not all interactions.
+        """
         super().__init__(cookie)
         data = requests.get(f'{api.base}/groups/{groupid}').json()
         if data.get('errors', ''):
@@ -171,7 +231,14 @@ class Group(api.BaseAuth):
     def __exit__(self, exc_type, exc_val, exc_tb):
         del self
 
-    def update_role(self, user: Union[User, int], role: Union[Role, int]):
+    def update_user_role(self, user: Union[User, int], role: Union[Role, int]) -> str:
+        """
+        Updates the given user's group role to the given role.
+
+        :param user: Either a User object or the userid of the user to alter.
+        :param role: Either a Role object or the roleid of the role to assign.
+        :return: 'Success'
+        """
         _id = user.id if isinstance(user, User) else user
         _role_id = role.id if isinstance(role, Role) else role
         data = self.session.patch(f'{api.groups}/groups/{self.id}/users/{_id}', data={'roleId': _role_id}).json()
@@ -180,25 +247,45 @@ class Group(api.BaseAuth):
         return 'Success'
 
     @property
-    def roles(self):
+    def roles(self) -> List[Role]:
+        """
+        Contains a list of Role objects representing the current group's roles.
+
+        :return: List[Role]
+        """
         if not self.__roles:
             data = requests.get(f'{api.groups}/groups/{self.id}/roles').json()['roles']
             self.__roles = sorted([Role(role) for role in data], key=lambda role: role.rank)
         return self.__roles
 
     @property
-    def description(self):
+    def description(self) -> str:
+        """
+        Contains the description of the current group.
+
+        :return: str
+        """
         return self.__description
 
     @description.setter
     def description(self, description: str):
+        """
+        Sets the description of the current group.
+
+        :param description: The description to set for the current group.
+        """
         data = self.session.patch(f'{api.groups}/groups/{self.id}/description', data={'description': description}).json()
         if data.get('errors', ''):
             utils.handle_code(data['errors'][0]['code'])
         self.__description = data['newDescription']
 
     @property
-    def shout(self):
+    def shout(self) -> Shout:
+        """
+        Contains the shout data of the current group in the form of the Shout class.
+
+        :return: Shout
+        """
         if not self.__shout:
             data = requests.get(f'{api.groups}/groups/{self.id}').json()
             if data.get('shout', ''):
@@ -207,13 +294,23 @@ class Group(api.BaseAuth):
 
     @shout.setter
     def shout(self, message: str):
+        """
+        Sets the shout of the current group.
+
+        :param message: The message for the shout to set.
+        """
         data = self.session.patch(f'{api.groups}/groups/{self.id}/status', data={'message': message}).json()
         if data.get('errors', ''):
             utils.handle_code(data['errors'][0]['code'])
         self.__shout = Shout(data)
 
     @property
-    def allies(self):
+    def allies(self) -> List['Group'] or str:
+        """
+        Contains a list of Group objects representing the current group's allies.
+
+        :return: List[Group] or 'Group has no allies'
+        """
         if type(self.__allies) is not list:
             ally_data = requests.get(f'{api.base}/groups/{self.id}/allies').json()['Groups']
             self.__allies = [Group(group['Id']) for group in ally_data]
@@ -223,7 +320,12 @@ class Group(api.BaseAuth):
             return 'Group has no allies'
 
     @property
-    def enemies(self):
+    def enemies(self) -> List['Group'] or str:
+        """
+        Contains a list of Group objects representing the current group's enemies.
+
+        :return: List[Group] or 'Group has no enemies'
+        """
         if type(self.__allies) is not list:
             enemy_data = requests.get(f'{api.base}/groups/{self.id}/enemies').json()['Groups']
             self.__enemies = [Group(group['Id']) for group in enemy_data]
@@ -234,6 +336,7 @@ class Group(api.BaseAuth):
 
 
 class Server:
+    """Class that handles information provided by the game servers API response."""
     def __init__(self, data):
         self.__dict__.update(data)
 
@@ -242,7 +345,15 @@ class Server:
 
 
 class Game(api.BaseAuth):
+    """Class that handles interactions with Roblox games."""
     def __init__(self, gameid: int, cookie: str):
+        """
+        Creates an object that provides Roblox game information and endpoint interactions.
+
+        :param gameid: The id of the game to create an object of.
+        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
+        but not all interactions.
+        """
         super().__init__(cookie)
         resp = self.session.get(f'{api.games}/games/multiget-place-details?placeIds={gameid}').json()
         if isinstance(resp, dict) and resp.get('errors', ''):
@@ -268,21 +379,36 @@ class Game(api.BaseAuth):
         del self
 
     @property
-    def favorites(self):
+    def favorites(self) -> int:
+        """
+        Contains the current game's favorites count.
+
+        :return: int
+        """
         if not self.__favorites:
             data = requests.get(f'{api.games}/games/{self.id}/favorites/count').json()
             self.__favorites = data['favoritesCount']
         return self.__favorites
 
     @property
-    def servers(self):
+    def servers(self) -> List[Server]:
+        """
+        Contains a list of Server objects representing the current game's top 100 servers.
+
+        :return: List[Server]
+        """
         if not self.__servers:
             data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100').json()
             self.__servers = [Server(server) for server in data['data']]
         return self.__servers
 
     @property
-    def votes(self):
+    def votes(self) -> conversion.GameVotes:
+        """
+        Contains the current game's upvotes and downvotes in the form of a GameVotes object.
+
+        :return: GameVotes
+        """
         if not self.__votes:
             data = requests.get(f'{api.games}/games/votes?universeIds={self.id}').json()['data'][0]
             self.__votes = conversion.GameVotes(data['upVotes'], data['downVotes'])
