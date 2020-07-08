@@ -9,7 +9,7 @@ All you need to do to start using this wrapper is to pip install it and the requ
 After that you're good to go!
 
 ## Usage
-The majority of this library revolves around the `User` and `Group` types. With these, you can get information about each and perform POST requests on authentication-required endpoints.
+The majority of this library revolves around the `User`, `Group` and `Game` types. With these, you can get information about each and perform POST/PATCH requests on authentication-required endpoints.
 
 Getting user's RAP
 ```py
@@ -36,7 +36,7 @@ with RbxAPI.User(1234567, cookie) as user:
     print(user.presence)
 ```
 ## Notes
-Both the `User` and `Group` objects have attributes assigned from the API responses and are generally set to lowercase.
+Each of the objects have attributes assigned from their respective API responses and are generally set to lowercase.
 
 For example, a `User`'s attributes are assigned based on the `https://api.roblox.com/users/{userid}` json response and you can access each normally.
 ```py
