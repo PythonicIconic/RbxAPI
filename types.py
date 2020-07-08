@@ -166,11 +166,12 @@ class User(api.BaseAuth):
         return cls(data['data'][0]['id'])
 
     @classmethod
-    def by_cookie(cls, cookie: str) -> 'User':
+    def by_cookie(cls, cookie: str, proxies: List[str] = None) -> 'User':
         """
         Class method that returns a User object based on the given cookie rather than username or id.
 
         :param cookie: The cookie of the user to create an object of.
+        :param proxies: Optional: List of proxies to use with a single cookie or several cookies.
         :return: User
         """
         sess = requests.session()
@@ -182,7 +183,10 @@ class User(api.BaseAuth):
         except:
             raise UserWarning('Invalid cookie')
         else:
-            return cls(data['UserID'], cookie)
+            if proxies:
+                return cls(data['UserID'], cookie, proxies=proxies)
+            else:
+                return cls(data['UserID'], cookie)
 
 
 class Shout:
