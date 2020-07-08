@@ -19,15 +19,21 @@ class CookieInfo:
 
 class User(api.BaseAuth):
     """Class that handles interactions with Roblox users."""
-    def __init__(self, userid: int, cookie: str = None):
+    def __init__(self, userid: int, cookie: str = None, **kwargs):
         """
         Creates an object that provides Roblox user information and endpoint interactions.
 
         :param userid: The id of the user to create an object of.
         :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
         but not all interactions.
+        :key cookies: Optional: List of cookies to use with a proxy.
+        :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
         """
-        super().__init__(cookie)
+        super().__init__(cookie, data=kwargs)
+        if kwargs.get('proxies', ''):
+            requests = self.session
+        else:
+            import requests
         data = {k.lower(): v for k, v in requests.get(f'{api.base}/users/{userid}').json().items()}
         data.update(requests.get(f'{api.user}/users/{userid}').json())
         if data.get('errors', ''):
@@ -201,15 +207,21 @@ class Role:
 
 class Group(api.BaseAuth):
     """Class that handles interactions with Roblox groups."""
-    def __init__(self, groupid: int, cookie: str = None):
+    def __init__(self, groupid: int, cookie: str = None, **kwargs):
         """
         Creates an object that provides Roblox group information and endpoint interactions.
 
         :param groupid: The id of the group to create an object of.
         :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
         but not all interactions.
+        :key cookies: Optional: List of cookies to use with a proxy.
+        :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
         """
-        super().__init__(cookie)
+        super().__init__(cookie, data=kwargs)
+        if kwargs.get('proxies', ''):
+            requests = self.session
+        else:
+            import requests
         data = requests.get(f'{api.base}/groups/{groupid}').json()
         if data.get('errors', ''):
             utils.handle_code(data['errors'][0]['code'])
@@ -217,6 +229,7 @@ class Group(api.BaseAuth):
             self.__dict__.update({k.lower(): v for k, v in data.items()})
             self.owner = User(self.owner['Id'])
             self.__description = self.__dict__.pop('description')
+            self.__membercount = None
             self.__enemies = None
             self.__allies = None
             self.__roles = None
@@ -280,6 +293,20 @@ class Group(api.BaseAuth):
         self.__description = data['newDescription']
 
     @property
+    def membercount(self) -> int:
+        """
+        Contains the member count of the current group.
+
+        :return: int
+        """
+        if not self.__membercount:
+            data = {k.lower(): v for k, v in requests.get(f'{api.groups}/groups/{self.id}').json().items()}
+            if data.get('shout', '') and not self.__shout:
+                self.__shout = Shout(data['shout'])
+            self.__membercount = data['membercount']
+        return self.__membercount
+
+    @property
     def shout(self) -> Shout:
         """
         Contains the shout data of the current group in the form of the Shout class.
@@ -287,9 +314,11 @@ class Group(api.BaseAuth):
         :return: Shout
         """
         if not self.__shout:
-            data = requests.get(f'{api.groups}/groups/{self.id}').json()
+            data = {k.lower(): v for k, v in requests.get(f'{api.groups}/groups/{self.id}').json().items()}
             if data.get('shout', ''):
                 self.__shout = Shout(data['shout'])
+            elif not self.__membercount:
+                self.__membercount = data['membercount']
         return self.__shout
 
     @shout.setter
@@ -346,15 +375,21 @@ class Server:
 
 class Game(api.BaseAuth):
     """Class that handles interactions with Roblox games."""
-    def __init__(self, gameid: int, cookie: str):
+    def __init__(self, gameid: int, cookie: str, **kwargs):
         """
         Creates an object that provides Roblox game information and endpoint interactions.
 
         :param gameid: The id of the game to create an object of.
         :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
         but not all interactions.
+        :key cookies: Optional: List of cookies to use with a proxy.
+        :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
         """
-        super().__init__(cookie)
+        super().__init__(cookie, data=kwargs)
+        if kwargs.get('proxies', ''):
+            requests = self.session
+        else:
+            import requests
         resp = self.session.get(f'{api.games}/games/multiget-place-details?placeIds={gameid}').json()
         if isinstance(resp, dict) and resp.get('errors', ''):
             utils.handle_code(resp['errors'][0]['code'])
