@@ -45,7 +45,7 @@ class BaseAuth:
         if cookie:
             self.__session.cookies['.ROBLOSECURITY'] = cookie
             self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
-            self.__validate_cookie(cookie)
+            self.__validate_cookie()
 
     def __enter__(self):
         return self.session
@@ -54,7 +54,7 @@ class BaseAuth:
         self.session.close()
         del self
 
-    def __validate_cookie(self, cookie):
+    def __validate_cookie(self):
         data = self.__session.get('https://www.roblox.com/mobileapi/userinfo')
         try:
             data.json()
@@ -72,7 +72,7 @@ class BaseAuth:
             choice = random.choice(self.__cookies)
             self.__session.cookies['.ROBLOSECURITY'] = choice
             self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
-            self.__validate_cookie(choice)
+            self.__validate_cookie()
         if self.__proxies:
             self.__session.proxies.update({self.__proxy_type: random.choice(self.__proxies)})
         return self.__session
@@ -87,4 +87,4 @@ class BaseAuth:
         """
         self.__session.cookies['.ROBLOSECURITY'] = cookie
         self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
-        self.__validate_cookie(cookie)
+        self.__validate_cookie()
