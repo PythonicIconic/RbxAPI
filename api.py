@@ -3,6 +3,9 @@ import random
 import re
 
 base = 'https://api.roblox.com'
+auth = 'https://auth.roblox.com/v1/account/pin/unlock'
+account = 'https://accountinformation.roblox.com/v1'
+messages = 'https://privatemessages.roblox.com/v1'
 user = 'https://users.roblox.com/v1'
 games = 'https://games.roblox.com/v1'
 groups = 'https://groups.roblox.com/v1'

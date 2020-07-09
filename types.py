@@ -44,6 +44,7 @@ class User(api.BaseAuth):
             self.__cookie_info = None
             self.__presence = None
             self.__friends = None
+            self.__status = None
             self.__groups = None
             self.__rap = None
 
@@ -70,6 +71,34 @@ class User(api.BaseAuth):
         else:
             raise UserWarning('Authentication required for this endpoint, session must be set')
         return self.__cookie_info
+
+    @property
+    def status(self) -> str:
+        """
+        Contains information about the current user's status.
+
+        :return: str
+        """
+        if not self.__status:
+            data = requests.get(f'{api.user}/users/{self.id}/status').json()
+            self.__status = data['status']
+        return self.__status
+
+    @status.setter
+    def status(self, status: str):
+        """
+        Sets the current user's status.
+
+        :param status: New status to set.
+        """
+        if self.session:
+            data = self.session.patch(f'{api.user}/users/{self.id}/status', data={'status': status}).json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            else:
+                self.__status = data['status']
+        else:
+            raise UserWarning('Authentication required for this endpoint, session must be set')
 
     @property
     def friends(self) -> List['User']:
@@ -149,6 +178,47 @@ class User(api.BaseAuth):
             else:
                 raise UserWarning('Authentication required for this endpoint, session must be set')
         return self.__presence
+
+    def change_description(self, description: str, pin: str = None):
+        """
+        Sets a new description for the current user.
+
+        :param description: New description to set.
+        :param pin: Optional: Account PIN to unlock settings if applicable.
+        """
+        if self.session:
+            if pin:
+                self.session.post(api.auth, data={'pin': pin})
+            data = self.session.post(f'{api.account}/description', data={'description': description}).json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            else:
+                self.description = self.session.get(f'{api.account}/description').json()['description']
+        else:
+            raise UserWarning('Authentication required for this endpoint, session must be set')
+
+    def message(self, subject: str, body: str, recipient: Union['User', int] = None):
+        """
+        Sends a message to the current user or the given recipient.
+
+        :param subject: The subject to use for the message.
+        :param body: The message itself to send.
+        :param recipient: Optional: Recipient to send the message to in the form of a User object or the userid.
+        """
+        if self.session:
+            if recipient:
+                _id = recipient if isinstance(recipient, int) else recipient.id
+            else:
+                _id = self.id
+            data = self.session.post(f'{api.messages}/messages/send', data={
+                'userId': self.by_cookie(self.session.cookies['.ROBLOSECURITY']).id, 'subject': subject, 'body': body,
+                'recipientId': _id}).json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            elif not data.get('success', ''):
+                raise UserWarning('Error occurred sending message')
+        else:
+            raise UserWarning('Authentication required for this endpoint, session must be set')
 
     @classmethod
     def by_username(cls, username: str) -> 'User':

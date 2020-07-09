@@ -16,6 +16,6 @@ def map_reduce_rap(data):
     return reduce(add, filter(lambda x: x, map(lambda k: k.get('recentAveragePrice', 0), data)))
 
 
-def handle_code(code):
+def handle_code(code: int):
     """Function that handles error codes provided by the Roblox API."""
     raise UserWarning(codes[code])
