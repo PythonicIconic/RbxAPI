@@ -25,8 +25,10 @@ class BaseAuth:
         :key proxy_type: Optional: Type (http|https) of the given proxies. Required if using proxies, otherwise optional.
         """
         self.__session = requests.session()
-        self.__cookies, self.__proxies, self.__proxy_type = \
-            data['data'].get('cookies', None), data['data'].get('proxies', None), data['data'].get('proxy_type', None)
+        if data:
+            self.__cookies, self.__proxies, self.__proxy_type = data['data'].get('cookies', None), data['data'].get('proxies', None), data['data'].get('proxy_type', None)
+        else:
+            self.__cookies, self.__proxies, self.__proxy_type = None, None, None
         if self.__cookies:
             if isinstance(self.__cookies, list):
                 pass
