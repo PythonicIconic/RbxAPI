@@ -150,13 +150,13 @@ class User(api.BaseAuth):
         :return: int
         """
         if not self.__rap:
-            data = requests.get(f'{api.inventory}/{self.id}/assets/collectibles?sortOrder=Asc&limit=100').json()
+            data = requests.get(f'{api.inventory}/v1/users/{self.id}/assets/collectibles?sortOrder=Asc&limit=100').json()
             if data.get('errors', ''):
                 utils.handle_code(data['errors'][0]['code'])
             else:
                 results = [data['data']]
                 while data['nextPageCursor']:
-                    data = requests.get(f'{api.inventory}/{self.id}/assets/collectibles?sortOrder=Asc&limit=100&cursor={data["nextPageCursor"]}').json()
+                    data = requests.get(f'{api.inventory}/v1/users/{self.id}/assets/collectibles?sortOrder=Asc&limit=100&cursor={data["nextPageCursor"]}').json()
                     results.append(data['data'])
                 self.__rap = utils.reduce(utils.add, [utils.map_reduce_rap(page) for page in results])
         return self.__rap
@@ -522,3 +522,94 @@ class Game(api.BaseAuth):
             data = requests.get(f'{api.games}/games/votes?universeIds={self.id}').json()['data'][0]
             self.__votes = conversion.GameVotes(data['upVotes'], data['downVotes'])
         return self.__votes
+
+
+class Resell:
+    """Class that handles information provided by the economy asset API response."""
+    def __init__(self, data):
+        self.__dict__.update(data)
+        self.seller = User(self.seller['id'])
+
+    def __repr__(self):
+        return f'Resell(seller={self.seller}, price={self.price}, serialNumber={self.serialNumber})'
+
+
+class Asset(api.BaseAuth):
+    """Class that handles interactions with Roblox assets."""
+    def __init__(self, assetid: int, cookie: str = None, **kwargs):
+        """
+        Creates an object that provides Roblox asset information and endpoint interactions.
+
+        :param gameid: The id of the asset to create an object of.
+        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
+        but not all interactions.
+        :key cookies: Optional: List of cookies to use with a proxy.
+        :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
+        """
+        super().__init__(cookie, data=kwargs)
+        if kwargs.get('proxies', ''):
+            requests = self.session
+        else:
+            import requests
+        data = requests.get(f'{api.economy}/{assetid}/resale-data').json()
+        if data.get('errors', ''):
+            utils.handle_code(data['errors'][0]['code'])
+        else:
+            self.__dict__.update(data)
+            self.__sellers = None
+            self.__owners = None
+            self.id = assetid
+
+    def __repr__(self):
+        return f'Asset(id={self.id}, assetStock={self.assetStock}, sales={self.sales}, ' \
+               f'recentAveragePrice={self.recentAveragePrice})'
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del self
+
+    @property
+    def sellers(self) -> List[Resell]:
+        """
+        Contains a list of Resell objects referencing the resellers of the current asset.
+
+        :return: List[Resell]
+        """
+        if not self.__sellers:
+            data = self.session.get(f'{api.economy}/{self.id}/resellers?limit=100').json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            elif not data['data']:
+                self.__sellers = []
+            results = [*data['data']]
+            while data['nextPageCursor']:
+                data = requests.get(f'{api.economy}/{self.id}/resellers?limit=100&cursor={data["nextPageCursor"]}').json()
+                results.append(*data['data'])
+            with ThreadPoolExecutor() as exe:
+                tasks = [exe.submit(Resell, data) for data in results]
+                self.__sellers = [t.result() for t in as_completed(tasks)]
+        return self.__sellers
+
+    @property
+    def owners(self) -> List[User]:
+        """
+        Contains a list of User objects referencing the owners of the current asset.
+
+        :return: List[User]
+        """
+        if not self.__owners:
+            data = self.session.get(f'{api.inventory}/v2/assets/{self.id}/owners?limit=100').json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            elif not data['data']:
+                self.__owners = 'No owners found for this asset'
+            results = [data['data']]
+            while data['nextPageCursor']:
+                data = self.session.get(f'{api.inventory}/v2/assets/{self.id}/owners?limit=100&cursor={data["nextPageCursor"]}').json()
+                results.append(data['data'])
+            with ThreadPoolExecutor() as exe:
+                tasks = [exe.submit(User, data['owner']['id']) for page in results for data in page if data['owner']]
+                self.__owners = [t.result() for t in as_completed(tasks)]
+        return self.__owners
