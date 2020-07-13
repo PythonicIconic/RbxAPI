@@ -221,6 +221,18 @@ class User(api.BaseAuth):
             raise UserWarning('Authentication required for this endpoint, session must be set')
 
     @classmethod
+    def has_asset(cls, userid: int, assetid: int) -> bool:
+        """
+        Class method that returns a boolean based on if the given user owns the given asset.
+
+        :param userid: The id of the user to check ownership for.
+        :param assetid: The id of the asset to check ownership of.
+        :return: bool
+        """
+        data: bool = requests.get(f'{api.base}/ownership/hasasset?userId={userid}&assetId={assetid}').json()
+        return data
+
+    @classmethod
     def by_username(cls, username: str) -> 'User':
         """
         Class method that returns a User object based on the given username rather than id.
