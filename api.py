@@ -50,7 +50,7 @@ class BaseAuth:
         self.__re = re.compile('https|http')
         if cookie:
             self.__session.cookies['.ROBLOSECURITY'] = cookie
-            self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+            self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://catalog.roblox.com/v1/catalog/items/details').headers['X-CSRF-TOKEN']
             self.__validate_cookie()
 
     def __enter__(self):

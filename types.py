@@ -24,8 +24,8 @@ class User(api.BaseAuth):
         Creates an object that provides Roblox user information and endpoint interactions.
 
         :param userid: The id of the user to create an object of.
-        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
-        but not all interactions.
+        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain, but not all interactions.
+
         :key cookies: Optional: List of cookies to use with a proxy.
         :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
         """
@@ -329,6 +329,23 @@ class Group(api.BaseAuth):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         del self
+
+    def payout(self, type: str, amount: int, recipients: Union[List[User], List[int]]) -> str:
+        """
+        Pays out group funds to the given users.
+
+        :param type: Either a type of `FixedAmount` or `Percentage`. Must enter the type as shown here or it will fail.
+        :param amount: The fixed amount of robux or percentage of robux to pay out to the given users.
+        :return: 'Success'
+        """
+        if isinstance(recipients[0], User):
+            _recipients = [{"recipientId": user.id, "recipientType": "User", "amount": amount} for user in recipients]
+        else:
+            _recipients = [{"recipientId": _id, "recipientType": "User", "amount": amount} for _id in recipients]
+        data = self.session.post(f'{api.groups}/groups/{self.id}/payouts', json={"PayoutType": type, "Recipients": _recipients}).json()
+        if data.get('errors', ''):
+            utils.handle_code(data['errors'][0]['code'])
+        return 'Success'
 
     def update_user_role(self, user: Union[User, int], role: Union[Role, int]) -> str:
         """
