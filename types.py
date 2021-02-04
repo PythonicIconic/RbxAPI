@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Union, List
-import requests
+from time import time
+import requests, random, webbrowser
 
 from RbxAPI import conversion
 from RbxAPI import utils
@@ -483,7 +484,7 @@ class Game(api.BaseAuth):
         Creates an object that provides Roblox game information and endpoint interactions.
 
         :param gameid: The id of the game to create an object of.
-        :param cookie: Optional: The user's cookie to use for authentication. This will be required for certain,
+        :param cookie: The user's cookie to use for authentication. This will be required for certain,
         but not all interactions.
         :key cookies: Optional: List of cookies to use with a proxy.
         :key proxies: Optional: List of proxies to use with a single cookie or several cookies.
@@ -503,6 +504,7 @@ class Game(api.BaseAuth):
             data = {k.lower(): v for k, v in resp.items()}
             self.__dict__.update(data)
             self.creator = User(self.creator.get('id')) if self.creator.get('type') == 'User' else Group(self.creator.get('id'))
+            self.__session_ticket = self.session.post('https://auth.roblox.com/v1/authentication-ticket').headers['rbx-authentication-ticket']
             self.__favorites = None
             self.__servers = None
             self.__votes = None
@@ -537,7 +539,10 @@ class Game(api.BaseAuth):
         """
         if not self.__servers:
             data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100').json()
-            self.__servers = [Server(server) for server in data['data']]
+            self.__servers = [*data['data']]
+            while data['nextPageCursor']:
+                data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100&cursor={data["nextPageCursor"]}').json()
+                self.__servers.append(*data['data'])
         return self.__servers
 
     @property
@@ -551,6 +556,14 @@ class Game(api.BaseAuth):
             data = requests.get(f'{api.games}/games/votes?universeIds={self.id}').json()['data'][0]
             self.__votes = conversion.GameVotes(data['upVotes'], data['downVotes'])
         return self.__votes
+
+    def join(self, lowest_best: bool = False):
+        gameid = None
+        if lowest_best:
+            best = next(filter(lambda s: s.playing == min(self.__servers, key=lambda s: s.playing).playing, self.__servers)).id
+            gameid = f'gameId%3D{best}%26'
+        BrowserID = random.randint(10000000000, 99999999999)
+        webbrowser.open(f"roblox-player:1+launchmode:play+gameinfo:{self.__session_ticket}+launchtime:{int(time()*1000)}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D{BrowserID}%26placeId%3D{self.placeid}%26{gameid}isPlayTogetherGame%3Dfalse+browsertrackerid:{BrowserID}+robloxLocale:en_us+gameLocale:en_us")
 
 
 class Resell:
