@@ -504,7 +504,7 @@ class Game(api.BaseAuth):
             data = {k.lower(): v for k, v in resp.items()}
             self.__dict__.update(data)
             self.creator = User(self.creator.get('id')) if self.creator.get('type') == 'User' else Group(self.creator.get('id'))
-            self.__session_ticket = self.session.post('https://auth.roblox.com/v1/authentication-ticket').headers['RBX-Authentication-Ticket']
+            self.__session_ticket = self.session.post('https://auth.roblox.com/v1/authentication-ticket', headers={'Referer': 'https://www.roblox.com'}).headers['rbx-authentication-ticket']
             self.__favorites = None
             self.__servers = None
             self.__votes = None
@@ -539,10 +539,10 @@ class Game(api.BaseAuth):
         """
         if not self.__servers:
             data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100').json()
-            self.__servers = [*data['data']]
+            self.__servers = [Server(d) for d in data['data']]
             while data['nextPageCursor']:
                 data = requests.get(f'{api.games}/games/{self.rootplaceid}/servers/Public?limit=100&cursor={data["nextPageCursor"]}').json()
-                self.__servers.append(*data['data'])
+                self.__servers.extend([Server(d) for d in data['data']])
         return self.__servers
 
     @property
@@ -558,12 +558,18 @@ class Game(api.BaseAuth):
         return self.__votes
 
     def join(self, lowest_best: bool = False):
+        """
+        Joins the current game using first available server or optionally the lowest and best available server.
+
+        :param lowest_best: Optional: Join server with lowest player count and best ping.
+        """
         gameid = None
         if lowest_best:
-            best = next(filter(lambda s: s.playing == min(self.__servers, key=lambda s: s.playing).playing, self.__servers)).id
-            gameid = f'gameId%3D{best}%26'
+            min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
+            best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
+            gameid = f'gameId%3D{best.id}%26'
         BrowserID = random.randint(10000000000, 99999999999)
-        webbrowser.open(f"roblox-player:1+launchmode:play+gameinfo:{self.__session_ticket}+launchtime:{int(time()*1000)}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D{BrowserID}%26placeId%3D{self.placeid}%26{gameid}isPlayTogetherGame%3Dfalse+browsertrackerid:{BrowserID}+robloxLocale:en_us+gameLocale:en_us")
+        webbrowser.open(f"roblox-player:1+launchmode:play+gameinfo:{self.__session_ticket}+launchtime:{int(time()*1000)}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D{BrowserID}%26placeId%3D{self.rootplaceid}%26{gameid}isPlayTogetherGame%3Dfalse+browsertrackerid:{BrowserID}+robloxLocale:en_us+gameLocale:en_us")
 
 
 class Resell:
