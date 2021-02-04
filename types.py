@@ -504,7 +504,7 @@ class Game(api.BaseAuth):
             data = {k.lower(): v for k, v in resp.items()}
             self.__dict__.update(data)
             self.creator = User(self.creator.get('id')) if self.creator.get('type') == 'User' else Group(self.creator.get('id'))
-            self.__session_ticket = self.session.post('https://auth.roblox.com/v1/authentication-ticket').headers['rbx-authentication-ticket']
+            self.__session_ticket = self.session.post('https://auth.roblox.com/v1/authentication-ticket').headers['RBX-Authentication-Ticket']
             self.__favorites = None
             self.__servers = None
             self.__votes = None
