@@ -563,13 +563,32 @@ class Game(api.BaseAuth):
 
         :param lowest_best: Optional: Join server with lowest player count and best ping.
         """
+        if not len(self.servers):
+            raise UserWarning("No servers available")
         gameid = None
         if lowest_best:
             min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
             best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
             gameid = f'gameId%3D{best.id}%26'
         BrowserID = random.randint(10000000000, 99999999999)
-        webbrowser.open(f"roblox-player:1+launchmode:play+gameinfo:{self.__session_ticket}+launchtime:{int(time()*1000)}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D{BrowserID}%26placeId%3D{self.rootplaceid}%26{gameid}isPlayTogetherGame%3Dfalse+browsertrackerid:{BrowserID}+robloxLocale:en_us+gameLocale:en_us")
+        webbrowser.open(f"roblox-player:1+launchmode:play+gameinfo:{self.__session_ticket}+launchtime:{int(time()*1000)}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D{BrowserID}%26placeId%3D{self.rootplaceid}%26{gameid}isPlayTogetherGame%3Dfalse+browsertrackerid:{BrowserID}+robloxLocale:en_us+gameLocale:en_us+channel:")
+
+    def join_script(self, lowest_best: bool = False) -> str:
+        """
+        Returns a script you can enter into your browser to directly join a game.
+
+        :param lowest_best: Optional: Join server with lowest player count and best ping.
+        :return: str
+        """
+        if not len(self.servers):
+            raise UserWarning("No servers available")
+        gameid = None
+        if lowest_best:
+            min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
+            best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
+            return f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{best.id}");'
+        lowest_ping = min(self.servers, key=lambda s: s.ping)
+        return f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{lowest_ping.id}");'
 
 
 class Resell:
