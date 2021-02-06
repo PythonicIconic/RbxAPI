@@ -221,6 +221,22 @@ class User(api.BaseAuth):
         else:
             raise UserWarning('Authentication required for this endpoint, session must be set')
 
+    def follow(self, user: Union['User', int]):
+        """
+        Follows the given user.
+
+        :param user: The user to follow in the form of a User object or the userid.
+        """
+        if self.session:
+            _id = user if isinstance(user, int) else user.id
+            data = self.session.post(f'{api.friends}/users/{_id}/follow', data={'targetUserId': _id}).json()
+            if data.get('errors', ''):
+                utils.handle_code(data['errors'][0]['code'])
+            elif not data.get('success', ''):
+                raise UserWarning('Error occurred following user')
+        else:
+            raise UserWarning('Authentication required for this endpoint, session must be set')
+
     @classmethod
     def has_asset(cls, userid: int, assetid: int) -> bool:
         """
@@ -582,13 +598,15 @@ class Game(api.BaseAuth):
         """
         if not len(self.servers):
             raise UserWarning("No servers available")
-        gameid = None
+        script = None
         if lowest_best:
             min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
             best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
-            return f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{best.id}");'
+            script = f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{best.id}");'
         lowest_ping = min(self.servers, key=lambda s: s.ping)
-        return f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{lowest_ping.id}");'
+        script = f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{lowest_ping.id}");'
+
+        return script
 
 
 class Resell:
