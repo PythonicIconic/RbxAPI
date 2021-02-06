@@ -275,7 +275,7 @@ class User(api.BaseAuth):
         """
         sess = requests.session()
         sess.cookies['.ROBLOSECURITY'] = cookie
-        sess.headers['X-CSRF-TOKEN'] = sess.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+        sess.headers['X-CSRF-TOKEN'] = sess.post('https://catalog.roblox.com/v1/catalog/items/details').headers['X-CSRF-TOKEN']
         data = sess.get('https://www.roblox.com/mobileapi/userinfo')
         try:
             data = data.json()
