@@ -78,7 +78,7 @@ class BaseAuth:
         if self.__cookies:
             choice = random.choice(self.__cookies)
             self.__session.cookies['.ROBLOSECURITY'] = choice
-            self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+            self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://catalog.roblox.com/v1/catalog/items/details').headers['X-CSRF-TOKEN']
             self.__validate_cookie()
         if self.__proxies:
             self.__session.proxies.update({self.__proxy_type: random.choice(self.__proxies)})
@@ -93,5 +93,5 @@ class BaseAuth:
         :return: requests.session
         """
         self.__session.cookies['.ROBLOSECURITY'] = cookie
-        self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://www.roblox.com/api/item.ashx?').headers['X-CSRF-TOKEN']
+        self.__session.headers['X-CSRF-TOKEN'] = self.__session.post('https://catalog.roblox.com/v1/catalog/items/details').headers['X-CSRF-TOKEN']
         self.__validate_cookie()

@@ -132,14 +132,14 @@ class User(api.BaseAuth):
         :return: List[Group]
         """
         if not self.__groups:
-            data = requests.get(f'{api.base}/users/{self.id}/groups').json()
+            data = requests.get(f'{api.groups}/users/{self.id}/groups/roles').json()
             if type(data) == dict and data.get('errors', ''):
                 utils.handle_code(data['errors'][0]['code'])
             elif not data:
                 raise UserWarning('User not in any groups')
             else:
                 with ThreadPoolExecutor() as exe:
-                    tasks = [exe.submit(Group, d['Id']) for d in data]
+                    tasks = [exe.submit(Group, d['group']['id']) for d in data['data']]
                     self.__groups = [t.result() for t in as_completed(tasks)]
         return self.__groups
 
@@ -583,7 +583,7 @@ class Game(api.BaseAuth):
             raise UserWarning("No servers available")
         gameid = None
         if lowest_best:
-            min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
+            min_players = min(filter(lambda s: hasattr(s, 'playing') & hasattr(s, 'ping'), self.servers), key=lambda s: s.playing).playing
             best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
             gameid = f'gameId%3D{best.id}%26'
         BrowserID = random.randint(10000000000, 99999999999)
@@ -600,7 +600,7 @@ class Game(api.BaseAuth):
             raise UserWarning("No servers available")
         script = None
         if lowest_best:
-            min_players = min(filter(lambda s: hasattr(s, 'playing'), self.servers), key=lambda s: s.playing).playing
+            min_players = min(filter(lambda s: hasattr(s, 'playing') & hasattr(s, 'ping'), self.servers), key=lambda s: s.playing).playing
             best = min(filter(lambda s: s.playing == min_players, self.servers), key=lambda s: s.ping)
             script = f'Roblox.GameLauncher.joinGameInstance({self.rootplaceid}, "{best.id}");'
         lowest_ping = min(self.servers, key=lambda s: s.ping)
