@@ -36,6 +36,7 @@ class User(api.BaseAuth):
         else:
             import requests
         data = {k.lower(): v for k, v in requests.get(f'{api.base}/users/{userid}').json().items()}
+        data.update({"isonline": requests.get(f'{api.base}/users/{userid}/onlinestatus').json()["IsOnline"]})
         data.update(requests.get(f'{api.user}/users/{userid}').json())
         if data.get('errors', ''):
             utils.handle_code(data['errors'][0]['code'])
